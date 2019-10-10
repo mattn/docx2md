@@ -85,6 +85,15 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 	return nil
 }
 
+func attr(attrs []xml.Attr, name string) (string, bool) {
+	for _, attr := range attrs {
+		if attr.Name.Local == "id" {
+			return attr.Value, true
+		}
+	}
+	return "", false
+}
+
 func (zf *file) walk(node *Node, w io.Writer) error {
 	switch node.XMLName.Local {
 	case "hyperlink":
@@ -97,12 +106,10 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		fmt.Fprint(w, "]")
 
 		fmt.Fprint(w, "(")
-		for _, attr := range node.Attrs {
-			if attr.Name.Local == "id" {
-				for _, rel := range zf.rels.Relationship {
-					if attr.Value == rel.ID {
-						fmt.Fprint(w, rel.Target)
-					}
+		if id, ok := attr(node.Attrs, "id"); ok {
+			for _, rel := range zf.rels.Relationship {
+				if id == rel.ID {
+					fmt.Fprint(w, rel.Target)
 				}
 			}
 		}
@@ -113,19 +120,15 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		for _, n := range node.Nodes {
 			switch n.XMLName.Local {
 			case "ind":
-				for _, attr := range n.Attrs {
-					if attr.Name.Local == "left" {
-						if i, err := strconv.Atoi(attr.Value); err == nil {
-							fmt.Fprint(w, strings.Repeat(" ", i/360))
-						}
+				if left, ok := attr(n.Attrs, "left"); ok {
+					if i, err := strconv.Atoi(left); err == nil {
+						fmt.Fprint(w, strings.Repeat(" ", i/360))
 					}
 				}
 			case "pStyle":
-				for _, attr := range n.Attrs {
-					if attr.Name.Local == "val" {
-						if i, err := strconv.Atoi(attr.Value); err == nil {
-							fmt.Fprint(w, strings.Repeat("#", i)+" ")
-						}
+				if val, ok := attr(n.Attrs, "val"); ok {
+					if i, err := strconv.Atoi(val); err == nil {
+						fmt.Fprint(w, strings.Repeat("#", i)+" ")
 					}
 				}
 			}
@@ -248,15 +251,13 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		}
 		fmt.Fprintln(w)
 	case "blip":
-		for _, attr := range node.Attrs {
-			if attr.Name.Local == "embed" {
-				for _, rel := range zf.rels.Relationship {
-					if attr.Value != rel.ID {
-						continue
-					}
-					if err := zf.extract(&rel, w); err != nil {
-						return err
-					}
+		if id, ok := attr(node.Attrs, "embed"); ok {
+			for _, rel := range zf.rels.Relationship {
+				if id != rel.ID {
+					continue
+				}
+				if err := zf.extract(&rel, w); err != nil {
+					return err
 				}
 			}
 		}
@@ -307,41 +308,45 @@ func docx2md(arg string, embed bool) error {
 	var rels Relationships
 
 	for _, f := range r.File {
-		if f.Name == "word/_rels/document.xml.rels" {
-			rc, err := f.Open()
-			defer rc.Close()
-
-			b, _ := ioutil.ReadAll(rc)
-			if err != nil {
-				return err
-			}
-
-			err = xml.Unmarshal(b, &rels)
-			if err != nil {
-				return err
-			}
+		if f.Name != "word/_rels/document.xml.rels" {
+			continue
 		}
+		rc, err := f.Open()
+		defer rc.Close()
+
+		b, _ := ioutil.ReadAll(rc)
+		if err != nil {
+			return err
+		}
+
+		err = xml.Unmarshal(b, &rels)
+		if err != nil {
+			return err
+		}
+		break
 	}
 
 	for _, f := range r.File {
-		if f.Name == "word/document.xml" {
-			node, err := readFile(f)
-			if err != nil {
-				return err
-			}
-
-			var buf bytes.Buffer
-			zf := &file{
-				r:     r,
-				rels:  rels,
-				embed: embed,
-			}
-			err = zf.walk(node, &buf)
-			if err != nil {
-				return err
-			}
-			fmt.Print(buf.String())
+		if f.Name != "word/document.xml" {
+			continue
 		}
+		node, err := readFile(f)
+		if err != nil {
+			return err
+		}
+
+		var buf bytes.Buffer
+		zf := &file{
+			r:     r,
+			rels:  rels,
+			embed: embed,
+		}
+		err = zf.walk(node, &buf)
+		if err != nil {
+			return err
+		}
+		fmt.Print(buf.String())
+		break
 	}
 
 	return nil
