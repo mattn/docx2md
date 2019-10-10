@@ -69,7 +69,7 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 			b := make([]byte, f.UncompressedSize64)
 			_, err = rc.Read(b)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			if zf.embed {
 				fmt.Fprintf(w, "![](data:image/png;base64,%s)", base64.StdEncoding.EncodeToString(b))
@@ -85,12 +85,12 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 	return nil
 }
 
-func (zf *file) walk(node Node, w io.Writer) error {
+func (zf *file) walk(node *Node, w io.Writer) error {
 	switch node.XMLName.Local {
 	case "hyperlink":
 		fmt.Fprint(w, "[")
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, w); err != nil {
+			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
 		}
@@ -131,7 +131,7 @@ func (zf *file) walk(node Node, w io.Writer) error {
 			}
 		}
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, w); err != nil {
+			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
 		}
@@ -147,7 +147,7 @@ func (zf *file) walk(node Node, w io.Writer) error {
 					continue
 				}
 				var cbuf bytes.Buffer
-				if err := zf.walk(tc, &cbuf); err != nil {
+				if err := zf.walk(&tc, &cbuf); err != nil {
 					return err
 				}
 				cols = append(cols, strings.Replace(cbuf.String(), "\n", "", -1))
@@ -227,7 +227,7 @@ func (zf *file) walk(node Node, w io.Writer) error {
 			fmt.Fprint(w, "~~")
 		}
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, w); err != nil {
+			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
 		}
@@ -242,7 +242,7 @@ func (zf *file) walk(node Node, w io.Writer) error {
 		}
 	case "p":
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, w); err != nil {
+			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
 		}
@@ -264,14 +264,14 @@ func (zf *file) walk(node Node, w io.Writer) error {
 	case "txbxContent":
 		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, &cbuf); err != nil {
+			if err := zf.walk(&n, &cbuf); err != nil {
 				return err
 			}
 		}
 		fmt.Fprintln(w, "\n```\n"+cbuf.String()+"```")
 	default:
 		for _, n := range node.Nodes {
-			if err := zf.walk(n, w); err != nil {
+			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
 		}
@@ -280,7 +280,24 @@ func (zf *file) walk(node Node, w io.Writer) error {
 	return nil
 }
 
-func docx2txt(arg string, embed bool) error {
+func readFile(f *zip.File) (*Node, error) {
+	rc, err := f.Open()
+	defer rc.Close()
+
+	b, _ := ioutil.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	var node Node
+	err = xml.Unmarshal(b, &node)
+	if err != nil {
+		return nil, err
+	}
+	return &node, nil
+}
+
+func docx2md(arg string, embed bool) error {
 	r, err := zip.OpenReader(arg)
 	if err != nil {
 		return err
@@ -308,19 +325,11 @@ func docx2txt(arg string, embed bool) error {
 
 	for _, f := range r.File {
 		if f.Name == "word/document.xml" {
-			rc, err := f.Open()
-			defer rc.Close() // TODO do not call defer in loop
-
-			b, _ := ioutil.ReadAll(rc)
+			node, err := readFile(f)
 			if err != nil {
 				return err
 			}
 
-			var node Node
-			err = xml.Unmarshal(b, &node)
-			if err != nil {
-				return err
-			}
 			var buf bytes.Buffer
 			zf := &file{
 				r:     r,
@@ -343,7 +352,7 @@ func main() {
 	flag.BoolVar(&embed, "embed", false, "embed resources")
 	flag.Parse()
 	for _, arg := range flag.Args() {
-		if err := docx2txt(arg, embed); err != nil {
+		if err := docx2md(arg, embed); err != nil {
 			log.Fatal(err)
 		}
 	}
