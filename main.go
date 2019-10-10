@@ -59,28 +59,31 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 		return err
 	}
 	for _, f := range zf.r.File {
-		if f.Name == "word/"+rel.Target {
-			rc, err := f.Open()
-			if err != nil {
-				return err
-			}
-			defer rc.Close() // TODO do not call defer in loop
-
-			b := make([]byte, f.UncompressedSize64)
-			_, err = rc.Read(b)
-			if err != nil {
-				return err
-			}
-			if zf.embed {
-				fmt.Fprintf(w, "![](data:image/png;base64,%s)", base64.StdEncoding.EncodeToString(b))
-			} else {
-				err = ioutil.WriteFile(rel.Target, b, 0644)
-				if err != nil {
-					return err
-				}
-				fmt.Fprintf(w, "![](%s)", rel.Target)
-			}
+		if f.Name != "word/"+rel.Target {
+			continue
 		}
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		b := make([]byte, f.UncompressedSize64)
+		_, err = rc.Read(b)
+		if err != nil {
+			return err
+		}
+		if zf.embed {
+			fmt.Fprintf(w, "![](data:image/png;base64,%s)",
+				base64.StdEncoding.EncodeToString(b))
+		} else {
+			err = ioutil.WriteFile(rel.Target, b, 0644)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "![](%s)", rel.Target)
+		}
+		break
 	}
 	return nil
 }
