@@ -237,21 +237,23 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				}
 			}
 		}
+		if strike {
+			fmt.Fprint(w, "~~")
+		}
 		if bold {
 			fmt.Fprint(w, "**")
 		}
 		if italic {
 			fmt.Fprint(w, "*")
 		}
-		if strike {
-			fmt.Fprint(w, "~~")
-		}
+		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
-			if err := zf.walk(&n, w); err != nil {
+			if err := zf.walk(&n, &cbuf); err != nil {
 				return err
 			}
 		}
-		if bold {
+		fmt.Fprint(w, escape(cbuf.String(), `*~\`))
+		if italic {
 			fmt.Fprint(w, "*")
 		}
 		if bold {
