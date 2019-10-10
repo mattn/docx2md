@@ -275,13 +275,13 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 		defer rc.Close()
 
 		b := make([]byte, f.UncompressedSize64)
-		_, err = rc.Read(b)
-		if err != nil {
+		n, err := rc.Read(b)
+		if err != nil && err != io.EOF {
 			return err
 		}
 		if zf.embed {
 			fmt.Fprintf(w, "![](data:image/png;base64,%s)",
-				base64.StdEncoding.EncodeToString(b))
+				base64.StdEncoding.EncodeToString(b[:n]))
 		} else {
 			err = ioutil.WriteFile(rel.Target, b, 0644)
 			if err != nil {
