@@ -9,6 +9,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -20,11 +22,12 @@ type Relationships struct {
 	Text         string   `xml:",chardata"`
 	Xmlns        string   `xml:"xmlns,attr"`
 	Relationship []struct {
-		Text       string `xml:",chardata"`
-		ID         string `xml:"Id,attr"`
-		Type       string `xml:"Type,attr"`
-		Target     string `xml:"Target,attr"`
-		TargetMode string `xml:"TargetMode,attr"`
+		Text            string `xml:",chardata"`
+		ID              string `xml:"Id,attr"`
+		Type            string `xml:"Type,attr"`
+		Target          string `xml:"Target,attr"`
+		TargetMode      string `xml:"TargetMode,attr"`
+		mustBeExtracted bool
 	} `xml:"Relationship"`
 }
 
@@ -196,13 +199,24 @@ func walk(node Node, w io.Writer) {
 			walk(n, w)
 		}
 		fmt.Fprintln(w)
-	case "drawing":
+	case "blip":
+		for _, attr := range node.Attrs {
+			if attr.Name.Local == "embed" {
+				for i, rel := range rels.Relationship {
+					if attr.Value == rel.ID {
+						fmt.Fprintf(w, "![](%s)", rel.Target)
+						rels.Relationship[i].mustBeExtracted = true
+					}
+				}
+			}
+		}
+	case "Fallback":
 	case "txbxContent":
 		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
 			walk(n, &cbuf)
 		}
-		fmt.Fprintln(w, "```\n"+cbuf.String()+"```")
+		fmt.Fprintln(w, "\n```\n"+cbuf.String()+"```")
 	default:
 		for _, n := range node.Nodes {
 			walk(n, w)
@@ -237,7 +251,7 @@ func docx2txt(arg string) {
 	for _, f := range r.File {
 		if f.Name == "word/document.xml" {
 			rc, err := f.Open()
-			defer rc.Close()
+			defer rc.Close() // TODO do not call defer in loop
 
 			b, _ := ioutil.ReadAll(rc)
 			if err != nil {
@@ -252,6 +266,34 @@ func docx2txt(arg string) {
 			var buf bytes.Buffer
 			walk(node, &buf)
 			fmt.Print(buf.String())
+		}
+	}
+
+	for _, rel := range rels.Relationship {
+		if rel.mustBeExtracted {
+			err = os.MkdirAll(filepath.Dir(rel.Target), 0755)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for _, f := range r.File {
+				if f.Name == "word/"+rel.Target {
+					rc, err := f.Open()
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer rc.Close() // TODO do not call defer in loop
+
+					b := make([]byte, f.UncompressedSize64)
+					_, err = rc.Read(b)
+					if err != nil {
+						log.Fatal(err)
+					}
+					err = ioutil.WriteFile(rel.Target, b, 0644)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+			}
 		}
 	}
 }
