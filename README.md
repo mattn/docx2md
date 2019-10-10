@@ -2,6 +2,8 @@
 
 Convert Microsoft Word Document to Markdown
 
+![docx2md](https://raw.githubusercontent.com/mattn/docx2md/master/screenshot.png)
+
 ## Usage
 
 ```
