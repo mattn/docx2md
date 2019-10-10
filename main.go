@@ -90,7 +90,7 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 
 func attr(attrs []xml.Attr, name string) (string, bool) {
 	for _, attr := range attrs {
-		if attr.Name.Local == "id" {
+		if attr.Name.Local == name {
 			return attr.Value, true
 		}
 	}
@@ -210,16 +210,17 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		italic := false
 		strike := false
 		for _, n := range node.Nodes {
-			if n.XMLName.Local == "rPr" {
-				for _, nn := range n.Nodes {
-					switch nn.XMLName.Local {
-					case "b":
-						bold = true
-					case "i":
-						italic = true
-					case "strike":
-						strike = true
-					}
+			if n.XMLName.Local != "rPr" {
+				continue
+			}
+			for _, nn := range n.Nodes {
+				switch nn.XMLName.Local {
+				case "b":
+					bold = true
+				case "i":
+					italic = true
+				case "strike":
+					strike = true
 				}
 			}
 		}
@@ -301,6 +302,15 @@ func readFile(f *zip.File) (*Node, error) {
 	return &node, nil
 }
 
+func findFile(files []*zip.File, target string) *zip.File {
+	for _, f := range files {
+		if f.Name == target {
+			return f
+		}
+	}
+	return nil
+}
+
 func docx2md(arg string, embed bool) error {
 	r, err := zip.OpenReader(arg)
 	if err != nil {
@@ -310,10 +320,7 @@ func docx2md(arg string, embed bool) error {
 
 	var rels Relationships
 
-	for _, f := range r.File {
-		if f.Name != "word/_rels/document.xml.rels" {
-			continue
-		}
+	if f := findFile(r.File, "word/_rels/document.xml.rels"); f != nil {
 		rc, err := f.Open()
 		defer rc.Close()
 
@@ -326,13 +333,9 @@ func docx2md(arg string, embed bool) error {
 		if err != nil {
 			return err
 		}
-		break
 	}
 
-	for _, f := range r.File {
-		if f.Name != "word/document.xml" {
-			continue
-		}
+	if f := findFile(r.File, "word/document.xml"); f != nil {
 		node, err := readFile(f)
 		if err != nil {
 			return err
@@ -349,7 +352,6 @@ func docx2md(arg string, embed bool) error {
 			return err
 		}
 		fmt.Print(buf.String())
-		break
 	}
 
 	return nil
