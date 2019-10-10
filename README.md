@@ -26,6 +26,7 @@ $ go get github.com/mattn/docx2md
 * Bold
 * Italic
 * Strike
+* Embeded Image
 
 ## License
 

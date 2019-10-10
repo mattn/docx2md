@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -22,16 +23,19 @@ type Relationships struct {
 	Text         string   `xml:",chardata"`
 	Xmlns        string   `xml:"xmlns,attr"`
 	Relationship []struct {
-		Text            string `xml:",chardata"`
-		ID              string `xml:"Id,attr"`
-		Type            string `xml:"Type,attr"`
-		Target          string `xml:"Target,attr"`
-		TargetMode      string `xml:"TargetMode,attr"`
-		mustBeExtracted bool
+		Text       string `xml:",chardata"`
+		ID         string `xml:"Id,attr"`
+		Type       string `xml:"Type,attr"`
+		Target     string `xml:"Target,attr"`
+		TargetMode string `xml:"TargetMode,attr"`
 	} `xml:"Relationship"`
 }
 
-var rels Relationships
+type file struct {
+	rels  Relationships
+	r     *zip.ReadCloser
+	embed bool
+}
 
 type Node struct {
 	XMLName xml.Name
@@ -47,19 +51,19 @@ func (n *Node) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return d.DecodeElement((*node)(n), &start)
 }
 
-func walk(node Node, w io.Writer) {
+func (zf *file) walk(node Node, w io.Writer) {
 	switch node.XMLName.Local {
 	case "hyperlink":
 		fmt.Fprint(w, "[")
 		for _, n := range node.Nodes {
-			walk(n, w)
+			zf.walk(n, w)
 		}
 		fmt.Fprint(w, "]")
 
 		fmt.Fprint(w, "(")
 		for _, attr := range node.Attrs {
 			if attr.Name.Local == "id" {
-				for _, rel := range rels.Relationship {
+				for _, rel := range zf.rels.Relationship {
 					if attr.Value == rel.ID {
 						fmt.Fprint(w, rel.Target)
 					}
@@ -91,7 +95,7 @@ func walk(node Node, w io.Writer) {
 			}
 		}
 		for _, n := range node.Nodes {
-			walk(n, w)
+			zf.walk(n, w)
 		}
 	case "tbl":
 		var rows [][]string
@@ -105,7 +109,7 @@ func walk(node Node, w io.Writer) {
 					continue
 				}
 				var cbuf bytes.Buffer
-				walk(tc, &cbuf)
+				zf.walk(tc, &cbuf)
 				cols = append(cols, strings.Replace(cbuf.String(), "\n", "", -1))
 			}
 			rows = append(rows, cols)
@@ -183,7 +187,7 @@ func walk(node Node, w io.Writer) {
 			fmt.Fprint(w, "~~")
 		}
 		for _, n := range node.Nodes {
-			walk(n, w)
+			zf.walk(n, w)
 		}
 		if bold {
 			fmt.Fprint(w, "*")
@@ -196,16 +200,44 @@ func walk(node Node, w io.Writer) {
 		}
 	case "p":
 		for _, n := range node.Nodes {
-			walk(n, w)
+			zf.walk(n, w)
 		}
 		fmt.Fprintln(w)
 	case "blip":
 		for _, attr := range node.Attrs {
 			if attr.Name.Local == "embed" {
-				for i, rel := range rels.Relationship {
-					if attr.Value == rel.ID {
-						fmt.Fprintf(w, "![](%s)", rel.Target)
-						rels.Relationship[i].mustBeExtracted = true
+				for _, rel := range zf.rels.Relationship {
+					if attr.Value != rel.ID {
+						continue
+					}
+
+					err := os.MkdirAll(filepath.Dir(rel.Target), 0755)
+					if err != nil {
+						log.Fatal(err)
+					}
+					for _, f := range zf.r.File {
+						if f.Name == "word/"+rel.Target {
+							rc, err := f.Open()
+							if err != nil {
+								log.Fatal(err)
+							}
+							defer rc.Close() // TODO do not call defer in loop
+
+							b := make([]byte, f.UncompressedSize64)
+							_, err = rc.Read(b)
+							if err != nil {
+								log.Fatal(err)
+							}
+							if zf.embed {
+								fmt.Fprintf(w, "![](data:image/png;base64,%s)", base64.StdEncoding.EncodeToString(b))
+							} else {
+								err = ioutil.WriteFile(rel.Target, b, 0644)
+								if err != nil {
+									log.Fatal(err)
+								}
+								fmt.Fprintf(w, "![](%s)", rel.Target)
+							}
+						}
 					}
 				}
 			}
@@ -214,22 +246,24 @@ func walk(node Node, w io.Writer) {
 	case "txbxContent":
 		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
-			walk(n, &cbuf)
+			zf.walk(n, &cbuf)
 		}
 		fmt.Fprintln(w, "\n```\n"+cbuf.String()+"```")
 	default:
 		for _, n := range node.Nodes {
-			walk(n, w)
+			zf.walk(n, w)
 		}
 	}
 }
 
-func docx2txt(arg string) {
+func docx2txt(arg string, embed bool) {
 	r, err := zip.OpenReader(arg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer r.Close()
+
+	var rels Relationships
 
 	for _, f := range r.File {
 		if f.Name == "word/_rels/document.xml.rels" {
@@ -264,43 +298,22 @@ func docx2txt(arg string) {
 				log.Fatal(err)
 			}
 			var buf bytes.Buffer
-			walk(node, &buf)
+			zf := &file{
+				r:     r,
+				rels:  rels,
+				embed: embed,
+			}
+			zf.walk(node, &buf)
 			fmt.Print(buf.String())
-		}
-	}
-
-	for _, rel := range rels.Relationship {
-		if rel.mustBeExtracted {
-			err = os.MkdirAll(filepath.Dir(rel.Target), 0755)
-			if err != nil {
-				log.Fatal(err)
-			}
-			for _, f := range r.File {
-				if f.Name == "word/"+rel.Target {
-					rc, err := f.Open()
-					if err != nil {
-						log.Fatal(err)
-					}
-					defer rc.Close() // TODO do not call defer in loop
-
-					b := make([]byte, f.UncompressedSize64)
-					_, err = rc.Read(b)
-					if err != nil {
-						log.Fatal(err)
-					}
-					err = ioutil.WriteFile(rel.Target, b, 0644)
-					if err != nil {
-						log.Fatal(err)
-					}
-				}
-			}
 		}
 	}
 }
 
 func main() {
+	var embed bool
+	flag.BoolVar(&embed, "embed", false, "embed resources")
 	flag.Parse()
 	for _, arg := range flag.Args() {
-		docx2txt(arg)
+		docx2txt(arg, embed)
 	}
 }
