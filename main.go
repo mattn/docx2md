@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -53,6 +54,15 @@ func (n *Node) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return d.DecodeElement((*node)(n), &start)
 }
 
+func escape(s, set string) string {
+	replacer := []string{}
+	for _, r := range []rune(set) {
+		rs := string(r)
+		replacer = append(replacer, rs, `\`+rs)
+	}
+	return strings.NewReplacer(replacer...).Replace(s)
+}
+
 func (zf *file) extract(rel *Relationship, w io.Writer) error {
 	err := os.MkdirAll(filepath.Dir(rel.Target), 0755)
 	if err != nil {
@@ -81,7 +91,7 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(w, "![](%s)", rel.Target)
+			fmt.Fprintf(w, "![](%s)", escape(rel.Target, "()"))
 		}
 		break
 	}
@@ -101,18 +111,21 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 	switch node.XMLName.Local {
 	case "hyperlink":
 		fmt.Fprint(w, "[")
+		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
-			if err := zf.walk(&n, w); err != nil {
+			if err := zf.walk(&n, &cbuf); err != nil {
 				return err
 			}
 		}
+		fmt.Fprint(w, escape(cbuf.String(), "[]"))
 		fmt.Fprint(w, "]")
 
 		fmt.Fprint(w, "(")
 		if id, ok := attr(node.Attrs, "id"); ok {
 			for _, rel := range zf.rels.Relationship {
 				if id == rel.ID {
-					fmt.Fprint(w, rel.Target)
+					fmt.Fprint(w, escape(rel.Target, "()"))
+					break
 				}
 			}
 		}
@@ -194,7 +207,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				fmt.Fprint(w, "|")
 				if j < len(row) {
 					width := runewidth.StringWidth(row[j])
-					fmt.Fprint(w, row[j])
+					fmt.Fprint(w, escape(row[j], "|"))
 					fmt.Fprint(w, strings.Repeat(" ", widths[j]-width))
 				} else {
 					fmt.Fprint(w, strings.Repeat(" ", widths[j]))
@@ -335,24 +348,26 @@ func docx2md(arg string, embed bool) error {
 		}
 	}
 
-	if f := findFile(r.File, "word/document.xml"); f != nil {
-		node, err := readFile(f)
-		if err != nil {
-			return err
-		}
-
-		var buf bytes.Buffer
-		zf := &file{
-			r:     r,
-			rels:  rels,
-			embed: embed,
-		}
-		err = zf.walk(node, &buf)
-		if err != nil {
-			return err
-		}
-		fmt.Print(buf.String())
+	f := findFile(r.File, "word/document.xml")
+	if f == nil {
+		return errors.New("incorrect document")
 	}
+	node, err := readFile(f)
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	zf := &file{
+		r:     r,
+		rels:  rels,
+		embed: embed,
+	}
+	err = zf.walk(node, &buf)
+	if err != nil {
+		return err
+	}
+	fmt.Print(buf.String())
 
 	return nil
 }
