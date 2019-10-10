@@ -34,10 +34,206 @@ type Relationships struct {
 	Relationship []Relationship `xml:"Relationship"`
 }
 
+type Styles struct {
+	XMLName   xml.Name `xml:"styles"`
+	Text      string   `xml:",chardata"`
+	Mc        string   `xml:"mc,attr"`
+	R         string   `xml:"r,attr"`
+	W         string   `xml:"w,attr"`
+	W14       string   `xml:"w14,attr"`
+	W15       string   `xml:"w15,attr"`
+	W16se     string   `xml:"w16se,attr"`
+	Ignorable string   `xml:"Ignorable,attr"`
+	Style     []struct {
+		Text        string `xml:",chardata"`
+		Type        string `xml:"type,attr"`
+		Default     string `xml:"default,attr"`
+		StyleId     string `xml:"styleId,attr"`
+		CustomStyle string `xml:"customStyle,attr"`
+		Name        struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"name"`
+		Rsid struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"rsid"`
+		PPr struct {
+			Text    string `xml:",chardata"`
+			Spacing struct {
+				Text     string `xml:",chardata"`
+				Line     string `xml:"line,attr"`
+				LineRule string `xml:"lineRule,attr"`
+			} `xml:"spacing"`
+			KeepNext   string `xml:"keepNext"`
+			OutlineLvl struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"outlineLvl"`
+			Tabs struct {
+				Text string `xml:",chardata"`
+				Tab  []struct {
+					Text string `xml:",chardata"`
+					Val  string `xml:"val,attr"`
+					Pos  string `xml:"pos,attr"`
+				} `xml:"tab"`
+			} `xml:"tabs"`
+			SnapToGrid struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"snapToGrid"`
+			Ind struct {
+				Text      string `xml:",chardata"`
+				LeftChars string `xml:"leftChars,attr"`
+				Left      string `xml:"left,attr"`
+			} `xml:"ind"`
+		} `xml:"pPr"`
+		RPr struct {
+			Text   string `xml:",chardata"`
+			RFonts struct {
+				Text          string `xml:",chardata"`
+				Ascii         string `xml:"ascii,attr"`
+				HAnsi         string `xml:"hAnsi,attr"`
+				Cs            string `xml:"cs,attr"`
+				AsciiTheme    string `xml:"asciiTheme,attr"`
+				EastAsiaTheme string `xml:"eastAsiaTheme,attr"`
+				HAnsiTheme    string `xml:"hAnsiTheme,attr"`
+				Cstheme       string `xml:"cstheme,attr"`
+			} `xml:"rFonts"`
+			Kern struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"kern"`
+			Sz struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"sz"`
+			Lang struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"lang"`
+			SzCs struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"szCs"`
+			Color struct {
+				Text       string `xml:",chardata"`
+				Val        string `xml:"val,attr"`
+				ThemeColor string `xml:"themeColor,attr"`
+			} `xml:"color"`
+			U struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"u"`
+			VertAlign struct {
+				Text string `xml:",chardata"`
+				Val  string `xml:"val,attr"`
+			} `xml:"vertAlign"`
+		} `xml:"rPr"`
+		BasedOn struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"basedOn"`
+		Next struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"next"`
+		Link struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"link"`
+		UiPriority struct {
+			Text string `xml:",chardata"`
+			Val  string `xml:"val,attr"`
+		} `xml:"uiPriority"`
+		QFormat        string `xml:"qFormat"`
+		UnhideWhenUsed string `xml:"unhideWhenUsed"`
+		SemiHidden     string `xml:"semiHidden"`
+		TblPr          struct {
+			Text   string `xml:",chardata"`
+			TblInd struct {
+				Text string `xml:",chardata"`
+				W    string `xml:"w,attr"`
+				Type string `xml:"type,attr"`
+			} `xml:"tblInd"`
+			TblCellMar struct {
+				Text string `xml:",chardata"`
+				Top  struct {
+					Text string `xml:",chardata"`
+					W    string `xml:"w,attr"`
+					Type string `xml:"type,attr"`
+				} `xml:"top"`
+				Left struct {
+					Text string `xml:",chardata"`
+					W    string `xml:"w,attr"`
+					Type string `xml:"type,attr"`
+				} `xml:"left"`
+				Bottom struct {
+					Text string `xml:",chardata"`
+					W    string `xml:"w,attr"`
+					Type string `xml:"type,attr"`
+				} `xml:"bottom"`
+				Right struct {
+					Text string `xml:",chardata"`
+					W    string `xml:"w,attr"`
+					Type string `xml:"type,attr"`
+				} `xml:"right"`
+			} `xml:"tblCellMar"`
+			TblBorders struct {
+				Text string `xml:",chardata"`
+				Top  struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"top"`
+				Left struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"left"`
+				Bottom struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"bottom"`
+				Right struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"right"`
+				InsideH struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"insideH"`
+				InsideV struct {
+					Text  string `xml:",chardata"`
+					Val   string `xml:"val,attr"`
+					Sz    string `xml:"sz,attr"`
+					Space string `xml:"space,attr"`
+					Color string `xml:"color,attr"`
+				} `xml:"insideV"`
+			} `xml:"tblBorders"`
+		} `xml:"tblPr"`
+	} `xml:"style"`
+}
+
 type file struct {
-	rels  Relationships
-	r     *zip.ReadCloser
-	embed bool
+	rels   Relationships
+	styles Styles
+	r      *zip.ReadCloser
+	embed  bool
+	num    int
 }
 
 type Node struct {
@@ -133,6 +329,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 	case "t":
 		fmt.Fprint(w, string(node.Content))
 	case "pPr":
+		code := false
 		for _, n := range node.Nodes {
 			switch n.XMLName.Local {
 			case "ind":
@@ -143,16 +340,34 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				}
 			case "pStyle":
 				if val, ok := attr(n.Attrs, "val"); ok {
-					if i, err := strconv.Atoi(val); err == nil {
-						fmt.Fprint(w, strings.Repeat("#", i)+" ")
+					if strings.HasPrefix(val, "Heading") {
+						if i, err := strconv.Atoi(val[7:]); err == nil {
+							fmt.Fprint(w, strings.Repeat("#", i)+" ")
+						}
+					} else if val == "Code" {
+						code = true
+					} else {
+						for _, style := range zf.styles.Style {
+							if val == style.StyleId {
+							}
+						}
+						if i, err := strconv.Atoi(val); err == nil {
+							fmt.Fprint(w, strings.Repeat("#", i)+" ")
+						}
 					}
 				}
 			}
+		}
+		if code {
+			fmt.Fprint(w, "`")
 		}
 		for _, n := range node.Nodes {
 			if err := zf.walk(&n, w); err != nil {
 				return err
 			}
+		}
+		if code {
+			fmt.Fprint(w, "`")
 		}
 	case "tbl":
 		var rows [][]string
@@ -334,19 +549,36 @@ func docx2md(arg string, embed bool) error {
 	defer r.Close()
 
 	var rels Relationships
+	var styles Styles
 
-	if f := findFile(r.File, "word/_rels/document.xml.rels"); f != nil {
-		rc, err := f.Open()
-		defer rc.Close()
+	for _, f := range r.File {
+		switch f.Name {
+		case "word/_rels/document.xml.rels":
+			rc, err := f.Open()
+			defer rc.Close()
 
-		b, _ := ioutil.ReadAll(rc)
-		if err != nil {
-			return err
-		}
+			b, _ := ioutil.ReadAll(rc)
+			if err != nil {
+				return err
+			}
 
-		err = xml.Unmarshal(b, &rels)
-		if err != nil {
-			return err
+			err = xml.Unmarshal(b, &rels)
+			if err != nil {
+				return err
+			}
+		case "word/styles.xml":
+			rc, err := f.Open()
+			defer rc.Close()
+
+			b, _ := ioutil.ReadAll(rc)
+			if err != nil {
+				return err
+			}
+
+			err = xml.Unmarshal(b, &styles)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -361,9 +593,11 @@ func docx2md(arg string, embed bool) error {
 
 	var buf bytes.Buffer
 	zf := &file{
-		r:     r,
-		rels:  rels,
-		embed: embed,
+		r:      r,
+		rels:   rels,
+		styles: styles,
+		embed:  embed,
+		num:    0,
 	}
 	err = zf.walk(node, &buf)
 	if err != nil {
