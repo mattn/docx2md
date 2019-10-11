@@ -1,5 +1,5 @@
 builds:
-  - binary: mattn
+  - binary: docx2md
     goos:
       - windows
       - darwin
@@ -15,4 +15,4 @@ archive:
 release:
   github:
     owner: mattn
-    name: mattn
+    name: docx2md
