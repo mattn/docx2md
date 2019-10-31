@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -466,7 +467,7 @@ func readFile(f *zip.File) (*Node, error) {
 
 func findFile(files []*zip.File, target string) *zip.File {
 	for _, f := range files {
-		if f.Name == target {
+		if ok, _ := path.Match(target, f.Name); ok {
 			return f
 		}
 	}
@@ -514,7 +515,7 @@ func docx2md(arg string, embed bool) error {
 		}
 	}
 
-	f := findFile(r.File, "word/document.xml")
+	f := findFile(r.File, "word/document*.xml")
 	if f == nil {
 		return errors.New("incorrect document")
 	}
