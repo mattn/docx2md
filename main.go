@@ -215,20 +215,20 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			switch n.XMLName.Local {
 			case "ind":
 				if left, ok := attr(n.Attrs, "left"); ok {
-					if i, err := strconv.Atoi(left); err == nil {
+					if i, err := strconv.Atoi(left); err == nil && i > 0 {
 						fmt.Fprint(w, strings.Repeat("  ", i/360))
 					}
 				}
 			case "pStyle":
 				if val, ok := attr(n.Attrs, "val"); ok {
 					if strings.HasPrefix(val, "Heading") {
-						if i, err := strconv.Atoi(val[7:]); err == nil {
+						if i, err := strconv.Atoi(val[7:]); err == nil && i > 0 {
 							fmt.Fprint(w, strings.Repeat("#", i)+" ")
 						}
 					} else if val == "Code" {
 						code = true
 					} else {
-						if i, err := strconv.Atoi(val); err == nil {
+						if i, err := strconv.Atoi(val); err == nil && i > 0 {
 							fmt.Fprint(w, strings.Repeat("#", i)+" ")
 						}
 					}
@@ -280,7 +280,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				fmt.Fprint(w, strings.Repeat("  ", ind))
 				switch numFmt {
 				case "decimal", "aiueoFullWidth":
-					key := fmt.Sprint("%s:%d", numId, ind)
+					key := fmt.Sprintf("%s:%d", numId, ind)
 					cur, ok := zf.list[key]
 					if !ok {
 						zf.list[key] = start
