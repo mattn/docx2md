@@ -22,10 +22,11 @@ import (
 )
 
 const name = "docx2md"
-const version = "0.0.5"
+const version = "0.0.6"
 
 var revision = "HEAD"
 
+// Relationship is
 type Relationship struct {
 	Text       string `xml:",chardata"`
 	ID         string `xml:"Id,attr"`
@@ -34,6 +35,7 @@ type Relationship struct {
 	TargetMode string `xml:"TargetMode,attr"`
 }
 
+// Relationships is
 type Relationships struct {
 	XMLName      xml.Name       `xml:"Relationships"`
 	Text         string         `xml:",chardata"`
@@ -41,11 +43,13 @@ type Relationships struct {
 	Relationship []Relationship `xml:"Relationship"`
 }
 
+// TextVal is
 type TextVal struct {
 	Text string `xml:",chardata"`
 	Val  string `xml:"val,attr"`
 }
 
+// NumberingLvl is
 type NumberingLvl struct {
 	Text      string  `xml:",chardata"`
 	Ilvl      string  `xml:"ilvl,attr"`
@@ -76,6 +80,7 @@ type NumberingLvl struct {
 	} `xml:"rPr"`
 }
 
+// Numbering is
 type Numbering struct {
 	XMLName     xml.Name `xml:"numbering"`
 	Text        string   `xml:",chardata"`
@@ -101,7 +106,7 @@ type Numbering struct {
 	Ignorable   string   `xml:"Ignorable,attr"`
 	AbstractNum []struct {
 		Text                       string         `xml:",chardata"`
-		AbstractNumId              string         `xml:"abstractNumId,attr"`
+		AbstractNumID              string         `xml:"abstractNumId,attr"`
 		RestartNumberingAfterBreak string         `xml:"restartNumberingAfterBreak,attr"`
 		Nsid                       TextVal        `xml:"nsid"`
 		MultiLevelType             TextVal        `xml:"multiLevelType"`
@@ -110,8 +115,8 @@ type Numbering struct {
 	} `xml:"abstractNum"`
 	Num []struct {
 		Text          string  `xml:",chardata"`
-		NumId         string  `xml:"numId,attr"`
-		AbstractNumId TextVal `xml:"abstractNumId"`
+		NumID         string  `xml:"numId,attr"`
+		AbstractNumID TextVal `xml:"abstractNumId"`
 	} `xml:"num"`
 }
 
@@ -123,6 +128,7 @@ type file struct {
 	list  map[string]int
 }
 
+// Node is
 type Node struct {
 	XMLName xml.Name
 	Attrs   []xml.Attr `xml:"-"`
@@ -130,6 +136,7 @@ type Node struct {
 	Nodes   []Node     `xml:",any"`
 }
 
+// UnmarshalXML is
 func (n *Node) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	n.Attrs = start.Attr
 	type node Node
@@ -240,7 +247,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					}
 				}
 			case "numPr":
-				numId := ""
+				numID := ""
 				ilvl := ""
 				numFmt := ""
 				start := 1
@@ -248,7 +255,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				for _, nn := range n.Nodes {
 					if nn.XMLName.Local == "numId" {
 						if val, ok := attr(nn.Attrs, "val"); ok {
-							numId = val
+							numID = val
 						}
 					}
 					if nn.XMLName.Local == "ilvl" {
@@ -258,11 +265,11 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					}
 				}
 				for _, num := range zf.num.Num {
-					if numId != num.NumId {
+					if numID != num.NumID {
 						continue
 					}
 					for _, abnum := range zf.num.AbstractNum {
-						if abnum.AbstractNumId != num.AbstractNumId.Val {
+						if abnum.AbstractNumID != num.AbstractNumID.Val {
 							continue
 						}
 						for _, ablvl := range abnum.Lvl {
@@ -286,7 +293,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				fmt.Fprint(w, strings.Repeat("  ", ind))
 				switch numFmt {
 				case "decimal", "aiueoFullWidth":
-					key := fmt.Sprintf("%s:%d", numId, ind)
+					key := fmt.Sprintf("%s:%d", numID, ind)
 					cur, ok := zf.list[key]
 					if !ok {
 						zf.list[key] = start
