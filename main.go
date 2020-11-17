@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -548,8 +549,14 @@ func docx2md(arg string, embed bool) error {
 
 func main() {
 	var embed bool
+	var showVersion bool
 	flag.BoolVar(&embed, "embed", false, "embed resources")
+	flag.BoolVar(&showVersion, "v", false, "Print the version")
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%s %s (rev: %s/%s)\n", name, version, revision, runtime.Version())
+		return
+	}
 	if flag.NArg() == 0 {
 		flag.Usage()
 		os.Exit(1)
