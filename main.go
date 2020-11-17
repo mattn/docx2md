@@ -20,6 +20,11 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+const name = "docx2md"
+const version = "0.0.5"
+
+var revision = "HEAD"
+
 type Relationship struct {
 	Text       string `xml:",chardata"`
 	ID         string `xml:"Id,attr"`
