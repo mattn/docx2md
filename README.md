@@ -13,7 +13,7 @@ $ docx2md NewDocument.docx
 ## Installation
 
 ```
-$ go get github.com/mattn/docx2md
+$ go install github.com/mattn/docx2md@latest
 ```
 
 ## Supported Styles
