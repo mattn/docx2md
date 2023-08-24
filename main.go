@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,14 +13,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mattn/go-runewidth"
 )
 
-const name = "docx2md"
+const name = "Docx2md"
 const version = "0.0.6"
 
 var revision = "HEAD"
@@ -487,12 +486,24 @@ func findFile(files []*zip.File, target string) *zip.File {
 	return nil
 }
 
-func docx2md(arg string, embed bool) error {
-	r, err := zip.OpenReader(arg)
+func Docx2md(doc []byte, embed bool) (*bytes.Buffer, error) {
+
+	fileLoc := fmt.Sprintf("/tmp/%d", time.Now().UnixNano())
+	err := os.WriteFile(fileLoc, doc, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer r.Close()
+
+	r, err := zip.OpenReader(fileLoc)
+	if err != nil {
+		return nil, err
+	}
+	defer func(r *zip.ReadCloser) {
+		err := r.Close()
+		if err != nil {
+
+		}
+	}(r)
 
 	var rels Relationships
 	var num Numbering
@@ -505,12 +516,12 @@ func docx2md(arg string, embed bool) error {
 
 			b, _ := ioutil.ReadAll(rc)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = xml.Unmarshal(b, &rels)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		case "word/numbering.xml":
 			rc, err := f.Open()
@@ -518,28 +529,28 @@ func docx2md(arg string, embed bool) error {
 
 			b, _ := ioutil.ReadAll(rc)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = xml.Unmarshal(b, &num)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
 	f := findFile(r.File, "word/document*.xml")
 	if f == nil {
-		return errors.New("incorrect document")
+		return nil, errors.New("incorrect document")
 	}
 	node, err := readFile(f)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var buf bytes.Buffer
 	zf := &file{
-		r:     r,
+		r:     &zip.ReadCloser{},
 		rels:  rels,
 		num:   num,
 		embed: embed,
@@ -547,30 +558,15 @@ func docx2md(arg string, embed bool) error {
 	}
 	err = zf.walk(node, &buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Print(buf.String())
 
-	return nil
+	return &buf, nil
 }
 
+// Tmp changes until there is time to properly use this as a library
 func main() {
-	var embed bool
-	var showVersion bool
-	flag.BoolVar(&embed, "embed", false, "embed resources")
-	flag.BoolVar(&showVersion, "v", false, "Print the version")
-	flag.Parse()
-	if showVersion {
-		fmt.Printf("%s %s (rev: %s/%s)\n", name, version, revision, runtime.Version())
-		return
-	}
-	if flag.NArg() == 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	for _, arg := range flag.Args() {
-		if err := docx2md(arg, embed); err != nil {
-			log.Fatal(err)
-		}
+	if _, err := Docx2md([]byte("Test"), false); err != nil {
+		log.Fatal(err)
 	}
 }

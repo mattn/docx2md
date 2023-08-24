@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"testing"
 )
 
@@ -22,4 +24,21 @@ func TestEscape(t *testing.T) {
 			t.Fatalf("want %v, but %v:", test.want, got)
 		}
 	}
+}
+
+func TestConversion(t *testing.T) {
+
+	v, err := ioutil.ReadFile("./tests.docx") //read the content of file
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	mk, err := Docx2md(v, false)
+	if err != nil {
+		return
+	}
+
+	fmt.Println(mk)
+
 }
