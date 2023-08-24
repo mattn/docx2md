@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -562,11 +561,4 @@ func Docx2md(doc []byte, embed bool) (*bytes.Buffer, error) {
 	}
 
 	return &buf, nil
-}
-
-// Tmp changes until there is time to properly use this as a library
-func main() {
-	if _, err := Docx2md([]byte("Test"), false); err != nil {
-		log.Fatal(err)
-	}
 }
