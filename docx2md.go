@@ -1,4 +1,4 @@
-package main
+package docx2md
 
 import (
 	"archive/zip"
