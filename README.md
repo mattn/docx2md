@@ -10,6 +10,12 @@ Convert Microsoft Word Document to Markdown
 $ docx2md NewDocument.docx
 ```
 
+Or docker
+
+```
+$ docker run -it --rm ghcr.io/mattn/docx2md NewDocument.docx
+```
+
 ## Installation
 
 ```

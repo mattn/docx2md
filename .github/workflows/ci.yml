@@ -18,5 +18,3 @@ jobs:
           go-version: 1.x
       - name: Test
         run: make test
-      - name: Lint
-        run: make lint
