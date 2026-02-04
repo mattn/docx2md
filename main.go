@@ -223,12 +223,21 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		fmt.Fprint(w, string(node.Content))
 	case "pPr":
 		code := false
+		hasNumPr := false
+		for _, n := range node.Nodes {
+			if n.XMLName.Local == "numPr" {
+				hasNumPr = true
+				break
+			}
+		}
 		for _, n := range node.Nodes {
 			switch n.XMLName.Local {
 			case "ind":
-				if left, ok := attr(n.Attrs, "left"); ok {
-					if i, err := strconv.Atoi(left); err == nil && i > 0 {
-						fmt.Fprint(w, strings.Repeat("  ", i/360))
+				if !hasNumPr {
+					if left, ok := attr(n.Attrs, "left"); ok {
+						if i, err := strconv.Atoi(left); err == nil && i > 0 {
+							fmt.Fprint(w, strings.Repeat("  ", i/360))
+						}
 					}
 				}
 			case "pStyle":
@@ -248,9 +257,9 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			case "numPr":
 				numID := ""
 				ilvl := ""
+				ilvlNum := 0
 				numFmt := ""
 				start := 1
-				ind := 0
 				for _, nn := range n.Nodes {
 					if nn.XMLName.Local == "numId" {
 						if val, ok := attr(nn.Attrs, "val"); ok {
@@ -260,6 +269,9 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					if nn.XMLName.Local == "ilvl" {
 						if val, ok := attr(nn.Attrs, "val"); ok {
 							ilvl = val
+							if i, err := strconv.Atoi(val); err == nil {
+								ilvlNum = i
+							}
 						}
 					}
 				}
@@ -278,9 +290,6 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 							if i, err := strconv.Atoi(ablvl.Start.Val); err == nil {
 								start = i
 							}
-							if i, err := strconv.Atoi(ablvl.PPr.Ind.Left); err == nil {
-								ind = i / 360
-							}
 							numFmt = ablvl.NumFmt.Val
 							break
 						}
@@ -289,10 +298,10 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					break
 				}
 
-				fmt.Fprint(w, strings.Repeat("  ", ind))
+				fmt.Fprint(w, strings.Repeat("  ", ilvlNum))
 				switch numFmt {
 				case "decimal", "aiueoFullWidth":
-					key := fmt.Sprintf("%s:%d", numID, ind)
+					key := fmt.Sprintf("%s:%d", numID, ilvlNum)
 					cur, ok := zf.list[key]
 					if !ok {
 						zf.list[key] = start
