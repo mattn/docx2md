@@ -244,13 +244,13 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				if val, ok := attr(n.Attrs, "val"); ok {
 					if strings.HasPrefix(val, "Heading") {
 						if i, err := strconv.Atoi(val[7:]); err == nil && i > 0 {
-							fmt.Fprint(w, strings.Repeat("#", i)+" ")
+							fmt.Fprint(w, "\n"+strings.Repeat("#", i)+" ")
 						}
 					} else if val == "Code" {
 						code = true
 					} else {
 						if i, err := strconv.Atoi(val); err == nil && i > 0 {
-							fmt.Fprint(w, strings.Repeat("#", i)+" ")
+							fmt.Fprint(w, "\n"+strings.Repeat("#", i)+" ")
 						}
 					}
 				}
@@ -298,10 +298,13 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					break
 				}
 
+				key := fmt.Sprintf("%s:%d", numID, ilvlNum)
+				if _, ok := zf.list[key]; !ok {
+					fmt.Fprint(w, "\n")
+				}
 				fmt.Fprint(w, strings.Repeat("  ", ilvlNum))
 				switch numFmt {
 				case "decimal", "aiueoFullWidth":
-					key := fmt.Sprintf("%s:%d", numID, ilvlNum)
 					cur, ok := zf.list[key]
 					if !ok {
 						zf.list[key] = start
@@ -310,6 +313,9 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					}
 					fmt.Fprintf(w, "%d. ", zf.list[key])
 				case "bullet":
+					if _, ok := zf.list[key]; !ok {
+						zf.list[key] = 1
+					}
 					fmt.Fprint(w, "* ")
 				}
 			}
@@ -326,6 +332,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			fmt.Fprint(w, "`")
 		}
 	case "tbl":
+		fmt.Fprint(w, "\n")
 		var rows [][]string
 		for _, tr := range node.Nodes {
 			if tr.XMLName.Local != "tr" {
@@ -432,12 +439,17 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			fmt.Fprint(w, "~~")
 		}
 	case "p":
+		var pbuf bytes.Buffer
 		for _, n := range node.Nodes {
-			if err := zf.walk(&n, w); err != nil {
+			if err := zf.walk(&n, &pbuf); err != nil {
 				return err
 			}
 		}
-		fmt.Fprintln(w)
+		content := pbuf.String()
+		if strings.TrimSpace(content) != "" {
+			fmt.Fprint(w, content)
+			fmt.Fprintln(w)
+		}
 	case "blip":
 		if id, ok := attr(node.Attrs, "embed"); ok {
 			for _, rel := range zf.rels.Relationship {
