@@ -21,7 +21,7 @@ import (
 )
 
 const name = "docx2md"
-const version = "0.0.12"
+const version = "0.0.13"
 
 var revision = "HEAD"
 
@@ -405,10 +405,10 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		if hasMerge && zf.cfg.HTMLTable {
 			// Calculate rowspan for vMerge cells
 			type htmlCell struct {
-				content  string
-				colspan  int
-				rowspan  int
-				skip     bool
+				content string
+				colspan int
+				rowspan int
+				skip    bool
 			}
 			htmlRows := make([][]htmlCell, len(cellRows))
 			for i, cells := range cellRows {
