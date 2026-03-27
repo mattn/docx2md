@@ -26,7 +26,10 @@ func TestDocx2md(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			err = docx2md(docxFile, false)
+			cfg := Config{
+				HTMLTable: strings.Contains(docxFile, "merged_cells"),
+			}
+			err = docx2md(docxFile, cfg)
 			if err != nil {
 				t.Fatalf("docx2md failed: %v", err)
 			}

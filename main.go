@@ -119,12 +119,18 @@ type Numbering struct {
 	} `xml:"num"`
 }
 
+// Config holds conversion options.
+type Config struct {
+	Embed     bool
+	HTMLTable bool
+}
+
 type file struct {
-	rels  Relationships
-	num   Numbering
-	r     *zip.ReadCloser
-	embed bool
-	list  map[string]int
+	rels Relationships
+	num  Numbering
+	r    *zip.ReadCloser
+	cfg  Config
+	list map[string]int
 }
 
 // Node is
@@ -172,7 +178,7 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 		if err != nil && err != io.EOF {
 			return err
 		}
-		if zf.embed {
+		if zf.cfg.Embed {
 			fmt.Fprintf(w, "![](data:image/png;base64,%s)",
 				base64.StdEncoding.EncodeToString(b[:n]))
 		} else {
@@ -333,65 +339,174 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		}
 	case "tbl":
 		fmt.Fprint(w, "\n")
-		var rows [][]string
+
+		type cellInfo struct {
+			content  string
+			gridSpan int
+			vMerge   string // "restart", "continue", or ""
+		}
+
+		var cellRows [][]cellInfo
 		for _, tr := range node.Nodes {
 			if tr.XMLName.Local != "tr" {
 				continue
 			}
-			var cols []string
+			var cells []cellInfo
 			for _, tc := range tr.Nodes {
 				if tc.XMLName.Local != "tc" {
 					continue
+				}
+				ci := cellInfo{gridSpan: 1}
+				for _, n := range tc.Nodes {
+					if n.XMLName.Local != "tcPr" {
+						continue
+					}
+					for _, nn := range n.Nodes {
+						switch nn.XMLName.Local {
+						case "gridSpan":
+							if val, ok := attr(nn.Attrs, "val"); ok {
+								if v, err := strconv.Atoi(val); err == nil {
+									ci.gridSpan = v
+								}
+							}
+						case "vMerge":
+							if val, ok := attr(nn.Attrs, "val"); ok {
+								ci.vMerge = val
+							} else {
+								ci.vMerge = "continue"
+							}
+						}
+					}
 				}
 				var cbuf bytes.Buffer
 				if err := zf.walk(&tc, &cbuf); err != nil {
 					return err
 				}
-				cols = append(cols, strings.Replace(cbuf.String(), "\n", "", -1))
+				ci.content = strings.Replace(cbuf.String(), "\n", "", -1)
+				cells = append(cells, ci)
 			}
-			rows = append(rows, cols)
+			cellRows = append(cellRows, cells)
 		}
-		maxcol := 0
-		for _, cols := range rows {
-			if len(cols) > maxcol {
-				maxcol = len(cols)
+
+		// Check if table has any merged cells
+		hasMerge := false
+		for _, cells := range cellRows {
+			for _, ci := range cells {
+				if ci.gridSpan > 1 || ci.vMerge != "" {
+					hasMerge = true
+					break
+				}
+			}
+			if hasMerge {
+				break
 			}
 		}
-		widths := make([]int, maxcol)
-		for _, row := range rows {
-			for i := 0; i < maxcol; i++ {
-				if i < len(row) {
-					width := runewidth.StringWidth(row[i])
-					if widths[i] < width {
-						widths[i] = width
+
+		if hasMerge && zf.cfg.HTMLTable {
+			// Calculate rowspan for vMerge cells
+			type htmlCell struct {
+				content  string
+				colspan  int
+				rowspan  int
+				skip     bool
+			}
+			htmlRows := make([][]htmlCell, len(cellRows))
+			for i, cells := range cellRows {
+				htmlRows[i] = make([]htmlCell, len(cells))
+				for j, ci := range cells {
+					htmlRows[i][j] = htmlCell{
+						content: ci.content,
+						colspan: ci.gridSpan,
+						rowspan: 1,
+					}
+					if ci.vMerge == "continue" {
+						htmlRows[i][j].skip = true
+						// Find the restart cell above and increment its rowspan
+						for k := i - 1; k >= 0; k-- {
+							if j < len(htmlRows[k]) && !htmlRows[k][j].skip {
+								htmlRows[k][j].rowspan++
+								break
+							}
+						}
 					}
 				}
 			}
-		}
-		for i, row := range rows {
-			if i == 0 {
-				for j := 0; j < maxcol; j++ {
-					fmt.Fprint(w, "|")
-					fmt.Fprint(w, strings.Repeat(" ", widths[j]))
+
+			fmt.Fprint(w, "<table>\n")
+			for i, row := range htmlRows {
+				fmt.Fprint(w, "  <tr>\n")
+				tag := "td"
+				if i == 0 {
+					tag = "th"
 				}
-				fmt.Fprint(w, "|\n")
+				for _, cell := range row {
+					if cell.skip {
+						continue
+					}
+					fmt.Fprintf(w, "    <%s", tag)
+					if cell.colspan > 1 {
+						fmt.Fprintf(w, " colspan=\"%d\"", cell.colspan)
+					}
+					if cell.rowspan > 1 {
+						fmt.Fprintf(w, " rowspan=\"%d\"", cell.rowspan)
+					}
+					fmt.Fprintf(w, ">%s</%s>\n", cell.content, tag)
+				}
+				fmt.Fprint(w, "  </tr>\n")
+			}
+			fmt.Fprint(w, "</table>\n")
+		} else {
+			// Plain markdown table (no merged cells)
+			var rows [][]string
+			for _, cells := range cellRows {
+				var cols []string
+				for _, ci := range cells {
+					cols = append(cols, ci.content)
+				}
+				rows = append(rows, cols)
+			}
+			maxcol := 0
+			for _, cols := range rows {
+				if len(cols) > maxcol {
+					maxcol = len(cols)
+				}
+			}
+			widths := make([]int, maxcol)
+			for _, row := range rows {
+				for i := 0; i < maxcol; i++ {
+					if i < len(row) {
+						width := runewidth.StringWidth(row[i])
+						if widths[i] < width {
+							widths[i] = width
+						}
+					}
+				}
+			}
+			for i, row := range rows {
+				if i == 0 {
+					for j := 0; j < maxcol; j++ {
+						fmt.Fprint(w, "|")
+						fmt.Fprint(w, strings.Repeat(" ", widths[j]))
+					}
+					fmt.Fprint(w, "|\n")
+					for j := 0; j < maxcol; j++ {
+						fmt.Fprint(w, "|")
+						fmt.Fprint(w, strings.Repeat("-", widths[j]))
+					}
+					fmt.Fprint(w, "|\n")
+				}
 				for j := 0; j < maxcol; j++ {
 					fmt.Fprint(w, "|")
-					fmt.Fprint(w, strings.Repeat("-", widths[j]))
+					if j < len(row) {
+						width := runewidth.StringWidth(row[j])
+						fmt.Fprint(w, escape(row[j], "|"))
+						fmt.Fprint(w, strings.Repeat(" ", widths[j]-width))
+					} else {
+						fmt.Fprint(w, strings.Repeat(" ", widths[j]))
+					}
 				}
 				fmt.Fprint(w, "|\n")
 			}
-			for j := 0; j < maxcol; j++ {
-				fmt.Fprint(w, "|")
-				if j < len(row) {
-					width := runewidth.StringWidth(row[j])
-					fmt.Fprint(w, escape(row[j], "|"))
-					fmt.Fprint(w, strings.Repeat(" ", widths[j]-width))
-				} else {
-					fmt.Fprint(w, strings.Repeat(" ", widths[j]))
-				}
-			}
-			fmt.Fprint(w, "|\n")
 		}
 		fmt.Fprint(w, "\n")
 	case "r":
@@ -507,7 +622,7 @@ func findFile(files []*zip.File, target string) *zip.File {
 	return nil
 }
 
-func docx2md(arg string, embed bool) error {
+func docx2md(arg string, cfg Config) error {
 	r, err := zip.OpenReader(arg)
 	if err != nil {
 		return err
@@ -559,11 +674,11 @@ func docx2md(arg string, embed bool) error {
 
 	var buf bytes.Buffer
 	zf := &file{
-		r:     r,
-		rels:  rels,
-		num:   num,
-		embed: embed,
-		list:  make(map[string]int),
+		r:    r,
+		rels: rels,
+		num:  num,
+		cfg:  cfg,
+		list: make(map[string]int),
 	}
 	err = zf.walk(node, &buf)
 	if err != nil {
@@ -575,9 +690,10 @@ func docx2md(arg string, embed bool) error {
 }
 
 func main() {
-	var embed bool
+	var cfg Config
 	var showVersion bool
-	flag.BoolVar(&embed, "embed", false, "embed resources")
+	flag.BoolVar(&cfg.Embed, "embed", false, "embed resources")
+	flag.BoolVar(&cfg.HTMLTable, "html-table", false, "output merged cells as HTML table")
 	flag.BoolVar(&showVersion, "v", false, "Print the version")
 	flag.Parse()
 	if showVersion {
@@ -589,7 +705,7 @@ func main() {
 		os.Exit(1)
 	}
 	for _, arg := range flag.Args() {
-		if err := docx2md(arg, embed); err != nil {
+		if err := docx2md(arg, cfg); err != nil {
 			log.Fatal(err)
 		}
 	}
