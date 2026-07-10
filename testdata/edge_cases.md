@@ -38,9 +38,9 @@ Tilde \~ characters too
 
 ## Complex Table
 
-|                |               |
-|----------------|---------------|
-|**Bold Header** |*Italic Header*|
+|                 |               |
+|-----------------|---------------|
+|**Bold Header**  |*Italic Header*|
 |Cell with \| pipe|Normal cell    |
 
 
