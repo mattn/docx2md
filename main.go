@@ -410,27 +410,38 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				content string
 				colspan int
 				rowspan int
+				gridCol int
 				skip    bool
 			}
 			htmlRows := make([][]htmlCell, len(cellRows))
 			for i, cells := range cellRows {
 				htmlRows[i] = make([]htmlCell, len(cells))
+				col := 0
 				for j, ci := range cells {
 					htmlRows[i][j] = htmlCell{
 						content: ci.content,
 						colspan: ci.gridSpan,
 						rowspan: 1,
+						gridCol: col,
 					}
 					if ci.vMerge == "continue" {
 						htmlRows[i][j].skip = true
-						// Find the restart cell above and increment its rowspan
+						// Find the restart cell above in the same grid
+						// column and increment its rowspan
+					search:
 						for k := i - 1; k >= 0; k-- {
-							if j < len(htmlRows[k]) && !htmlRows[k][j].skip {
-								htmlRows[k][j].rowspan++
-								break
+							for m := range htmlRows[k] {
+								if htmlRows[k][m].gridCol == col {
+									if !htmlRows[k][m].skip {
+										htmlRows[k][m].rowspan++
+										break search
+									}
+									break
+								}
 							}
 						}
 					}
+					col += ci.gridSpan
 				}
 			}
 
