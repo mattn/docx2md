@@ -1,0 +1,2 @@
+testdata/*.md -text
+testdata/*.docx binary
