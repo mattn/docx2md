@@ -236,6 +236,8 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		fmt.Fprint(w, ")")
 	case "t":
 		fmt.Fprint(w, string(node.Content))
+	case "br", "cr":
+		fmt.Fprint(w, "\n")
 	case "pPr":
 		code := false
 		hasNumPr := false
