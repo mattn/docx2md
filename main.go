@@ -550,6 +550,16 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				}
 			}
 		}
+		var cbuf bytes.Buffer
+		for _, n := range node.Nodes {
+			if err := zf.walk(&n, &cbuf); err != nil {
+				return err
+			}
+		}
+		content := escape(cbuf.String(), `*~\`)
+		if content == "" {
+			break
+		}
 		if strike {
 			fmt.Fprint(w, "~~")
 		}
@@ -559,13 +569,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		if italic {
 			fmt.Fprint(w, "*")
 		}
-		var cbuf bytes.Buffer
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, &cbuf); err != nil {
-				return err
-			}
-		}
-		fmt.Fprint(w, escape(cbuf.String(), `*~\`))
+		fmt.Fprint(w, content)
 		if italic {
 			fmt.Fprint(w, "*")
 		}
