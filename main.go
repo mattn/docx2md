@@ -463,7 +463,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			for _, cells := range cellRows {
 				var cols []string
 				for _, ci := range cells {
-					cols = append(cols, ci.content)
+					cols = append(cols, escape(ci.content, "|"))
 				}
 				rows = append(rows, cols)
 			}
@@ -501,7 +501,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					fmt.Fprint(w, "|")
 					if j < len(row) {
 						width := runewidth.StringWidth(row[j])
-						fmt.Fprint(w, escape(row[j], "|"))
+						fmt.Fprint(w, row[j])
 						fmt.Fprint(w, strings.Repeat(" ", widths[j]-width))
 					} else {
 						fmt.Fprint(w, strings.Repeat(" ", widths[j]))
