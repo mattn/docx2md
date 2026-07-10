@@ -48,6 +48,17 @@ func TestDocx2md(t *testing.T) {
 	}
 }
 
+func TestExtractRejectsTraversal(t *testing.T) {
+	zf := &file{}
+	for _, target := range []string{"../evil.sh", "/etc/passwd", "media/../../evil.sh", ".."} {
+		var buf bytes.Buffer
+		err := zf.extract(&Relationship{Target: target}, &buf)
+		if err == nil {
+			t.Errorf("expected error for target %q", target)
+		}
+	}
+}
+
 func TestEscape(t *testing.T) {
 	tests := []struct {
 		input  string
