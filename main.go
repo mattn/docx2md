@@ -202,6 +202,18 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 	return nil
 }
 
+func onOff(attrs []xml.Attr) bool {
+	val, ok := attr(attrs, "val")
+	if !ok {
+		return true
+	}
+	switch val {
+	case "0", "false", "none", "off":
+		return false
+	}
+	return true
+}
+
 func attr(attrs []xml.Attr, name string) (string, bool) {
 	for _, attr := range attrs {
 		if attr.Name.Local == name {
@@ -542,11 +554,11 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			for _, nn := range n.Nodes {
 				switch nn.XMLName.Local {
 				case "b":
-					bold = true
+					bold = onOff(nn.Attrs)
 				case "i":
-					italic = true
+					italic = onOff(nn.Attrs)
 				case "strike":
-					strike = true
+					strike = onOff(nn.Attrs)
 				}
 			}
 		}
