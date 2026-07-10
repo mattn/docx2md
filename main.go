@@ -139,25 +139,49 @@ type file struct {
 type Node struct {
 	XMLName xml.Name
 	Attrs   []xml.Attr `xml:"-"`
-	Content []byte     `xml:",innerxml"`
+	Content string     `xml:",chardata"`
 	Nodes   []Node     `xml:",any"`
 }
 
 // UnmarshalXML is
 func (n *Node) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	n.XMLName = start.Name
 	n.Attrs = start.Attr
-	type node Node
-
-	return d.DecodeElement((*node)(n), &start)
+	var content []byte
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			var child Node
+			if err := child.UnmarshalXML(d, t); err != nil {
+				return err
+			}
+			n.Nodes = append(n.Nodes, child)
+		case xml.CharData:
+			content = append(content, t...)
+		case xml.EndElement:
+			n.Content = string(content)
+			return nil
+		}
+	}
 }
 
 func escape(s, set string) string {
-	replacer := []string{}
-	for _, r := range []rune(set) {
-		rs := string(r)
-		replacer = append(replacer, rs, `\`+rs)
+	if !strings.ContainsAny(s, set) {
+		return s
 	}
-	return strings.NewReplacer(replacer...).Replace(s)
+	var sb strings.Builder
+	sb.Grow(len(s) + 8)
+	for _, r := range s {
+		if strings.ContainsRune(set, r) {
+			sb.WriteByte('\\')
+		}
+		sb.WriteRune(r)
+	}
+	return sb.String()
 }
 
 func (zf *file) extract(rel *Relationship, w io.Writer) error {
@@ -227,8 +251,8 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 	switch node.XMLName.Local {
 	case "hyperlink":
 		var cbuf bytes.Buffer
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, &cbuf); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], &cbuf); err != nil {
 				return err
 			}
 		}
@@ -250,7 +274,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 				escape(cbuf.String(), "[]"), escape(target, "()"))
 		}
 	case "t":
-		fmt.Fprint(w, string(node.Content))
+		fmt.Fprint(w, node.Content)
 	case "br", "cr":
 		fmt.Fprint(w, "\n")
 	case "tab":
@@ -359,8 +383,8 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		if code {
 			fmt.Fprint(w, "`")
 		}
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, w); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], w); err != nil {
 				return err
 			}
 		}
@@ -570,8 +594,8 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 			}
 		}
 		var cbuf bytes.Buffer
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, &cbuf); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], &cbuf); err != nil {
 				return err
 			}
 		}
@@ -600,8 +624,8 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		}
 	case "p":
 		var pbuf bytes.Buffer
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, &pbuf); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], &pbuf); err != nil {
 				return err
 			}
 		}
@@ -624,15 +648,15 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 	case "Fallback":
 	case "txbxContent":
 		var cbuf bytes.Buffer
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, &cbuf); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], &cbuf); err != nil {
 				return err
 			}
 		}
 		fmt.Fprintln(w, "\n```\n"+cbuf.String()+"```")
 	default:
-		for _, n := range node.Nodes {
-			if err := zf.walk(&n, w); err != nil {
+		for i := range node.Nodes {
+			if err := zf.walk(&node.Nodes[i], w); err != nil {
 				return err
 			}
 		}
