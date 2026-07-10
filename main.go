@@ -598,9 +598,12 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 
 func readFile(f *zip.File) (*Node, error) {
 	rc, err := f.Open()
+	if err != nil {
+		return nil, err
+	}
 	defer rc.Close()
 
-	b, _ := io.ReadAll(rc)
+	b, err := io.ReadAll(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -636,9 +639,11 @@ func docx2md(arg string, cfg Config) error {
 		switch f.Name {
 		case "word/_rels/document.xml.rels", "word/_rels/document2.xml.rels":
 			rc, err := f.Open()
-			defer rc.Close()
-
-			b, _ := io.ReadAll(rc)
+			if err != nil {
+				return err
+			}
+			b, err := io.ReadAll(rc)
+			rc.Close()
 			if err != nil {
 				return err
 			}
@@ -649,9 +654,11 @@ func docx2md(arg string, cfg Config) error {
 			}
 		case "word/numbering.xml":
 			rc, err := f.Open()
-			defer rc.Close()
-
-			b, _ := io.ReadAll(rc)
+			if err != nil {
+				return err
+			}
+			b, err := io.ReadAll(rc)
+			rc.Close()
 			if err != nil {
 				return err
 			}
