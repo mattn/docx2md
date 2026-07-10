@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"os"
@@ -450,7 +451,7 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 					if cell.rowspan > 1 {
 						fmt.Fprintf(w, " rowspan=\"%d\"", cell.rowspan)
 					}
-					fmt.Fprintf(w, ">%s</%s>\n", cell.content, tag)
+					fmt.Fprintf(w, ">%s</%s>\n", html.EscapeString(cell.content), tag)
 				}
 				fmt.Fprint(w, "  </tr>\n")
 			}
