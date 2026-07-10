@@ -11,6 +11,7 @@ import (
 	"html"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -181,7 +182,8 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 			return err
 		}
 		if zf.cfg.Embed {
-			fmt.Fprintf(w, "![](data:image/png;base64,%s)",
+			fmt.Fprintf(w, "![](data:%s;base64,%s)",
+				http.DetectContentType(b),
 				base64.StdEncoding.EncodeToString(b))
 		} else {
 			err = os.WriteFile(rel.Target, b, 0644)
