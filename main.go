@@ -159,9 +159,11 @@ func escape(s, set string) string {
 }
 
 func (zf *file) extract(rel *Relationship, w io.Writer) error {
-	err := os.MkdirAll(filepath.Dir(rel.Target), 0755)
-	if err != nil {
-		return err
+	if !zf.cfg.Embed {
+		err := os.MkdirAll(filepath.Dir(rel.Target), 0755)
+		if err != nil {
+			return err
+		}
 	}
 	for _, f := range zf.r.File {
 		if f.Name != "word/"+rel.Target {
