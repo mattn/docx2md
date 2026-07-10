@@ -161,8 +161,13 @@ func escape(s, set string) string {
 }
 
 func (zf *file) extract(rel *Relationship, w io.Writer) error {
+	target := path.Clean(rel.Target)
+	if path.IsAbs(target) || target == ".." || strings.HasPrefix(target, "../") ||
+		filepath.IsAbs(filepath.FromSlash(target)) {
+		return fmt.Errorf("invalid resource path: %s", rel.Target)
+	}
 	if !zf.cfg.Embed {
-		err := os.MkdirAll(filepath.Dir(rel.Target), 0755)
+		err := os.MkdirAll(filepath.Dir(filepath.FromSlash(target)), 0755)
 		if err != nil {
 			return err
 		}
@@ -186,11 +191,11 @@ func (zf *file) extract(rel *Relationship, w io.Writer) error {
 				http.DetectContentType(b),
 				base64.StdEncoding.EncodeToString(b))
 		} else {
-			err = os.WriteFile(rel.Target, b, 0644)
+			err = os.WriteFile(filepath.FromSlash(target), b, 0644)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(w, "![](%s)", escape(rel.Target, "()"))
+			fmt.Fprintf(w, "![](%s)", escape(target, "()"))
 		}
 		break
 	}
