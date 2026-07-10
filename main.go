@@ -253,6 +253,10 @@ func (zf *file) walk(node *Node, w io.Writer) error {
 		fmt.Fprint(w, string(node.Content))
 	case "br", "cr":
 		fmt.Fprint(w, "\n")
+	case "tab":
+		fmt.Fprint(w, "\t")
+	case "tabs":
+		// tab stop definitions in paragraph properties, not content
 	case "pPr":
 		code := false
 		hasNumPr := false
