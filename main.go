@@ -214,26 +214,29 @@ func attr(attrs []xml.Attr, name string) (string, bool) {
 func (zf *file) walk(node *Node, w io.Writer) error {
 	switch node.XMLName.Local {
 	case "hyperlink":
-		fmt.Fprint(w, "[")
 		var cbuf bytes.Buffer
 		for _, n := range node.Nodes {
 			if err := zf.walk(&n, &cbuf); err != nil {
 				return err
 			}
 		}
-		fmt.Fprint(w, escape(cbuf.String(), "[]"))
-		fmt.Fprint(w, "]")
-
-		fmt.Fprint(w, "(")
+		target := ""
 		if id, ok := attr(node.Attrs, "id"); ok {
 			for _, rel := range zf.rels.Relationship {
 				if id == rel.ID {
-					fmt.Fprint(w, escape(rel.Target, "()"))
+					target = rel.Target
 					break
 				}
 			}
+		} else if anchor, ok := attr(node.Attrs, "anchor"); ok {
+			target = "#" + anchor
 		}
-		fmt.Fprint(w, ")")
+		if target == "" {
+			fmt.Fprint(w, cbuf.String())
+		} else {
+			fmt.Fprintf(w, "[%s](%s)",
+				escape(cbuf.String(), "[]"), escape(target, "()"))
+		}
 	case "t":
 		fmt.Fprint(w, string(node.Content))
 	case "br", "cr":
